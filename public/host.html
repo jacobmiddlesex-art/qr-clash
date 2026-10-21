@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Clash - Host Panel</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body { font-family: sans-serif; background: #0f172a; color: #fff; text-align: center; padding: 20px; }
+    .btn { font-size: 18px; padding: 12px 24px; margin: 8px; border-radius: 8px; border: none; cursor: pointer; }
+    .btn-green { background: #22c55e; color: #000; }
+    .btn-amber { background: #f59e0b; color: #000; }
+    .btn-red { background: #ef4444; color: #fff; }
+    #qrContainer { background: #fff; padding: 20px; display: inline-block; border-radius: 12px; margin: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Game Host Control</h1>
+  <div>
+    <button class="btn btn-green" onclick="sendCmd('START')">Start / Resume</button>
+    <button class="btn btn-amber" onclick="sendCmd('PAUSE')">Pause</button>
+    <button class="btn btn-red" onclick="sendCmd('RESTART')">Reset Scores</button>
+  </div>
+  <h2 id="statusDisplay">Status: IDLE</h2>
+
+  <h3>Print or Display This Target QR Code:</h3>
+  <div id="qrContainer"></div>
+
+  <script>
+    const socket = io();
+    new QRCode(document.getElementById("qrContainer"), {
+      text: "GAME_TARGET_TOKEN_2026",
+      width: 250,
+      height: 250
+    });
+
+    function sendCmd(action) {
+      socket.emit('hostCommand', action);
+    }
+
+    socket.on('stateUpdate', (state) => {
+      document.getElementById('statusDisplay').innerText = 
+        `Status: ${state.status} | P1: ${state.players.p1.score} | P2: ${state.players.p2.score}`;
+    });
+  </script>
+</body>
+</html>

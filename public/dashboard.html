@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Clash - Live Dashboard</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body { font-family: sans-serif; background: #09090b; color: #f8fafc; margin: 0; padding: 40px; }
+    .arena { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px; }
+    .card { background: #18181b; padding: 30px; border-radius: 16px; border: 2px solid #27272a; text-align: center; }
+    .card.active { border-color: #22c55e; box-shadow: 0 0 20px rgba(34,197,94,0.3); }
+    .card.contested { border-color: #eab308; }
+    .meter { height: 36px; background: #27272a; border-radius: 18px; overflow: hidden; margin-top: 20px; }
+    .fill { height: 100%; width: 0%; transition: width 0.1s linear; }
+    .p1-fill { background: #3b82f6; }
+    .p2-fill { background: #ec4899; }
+    .banner { font-size: 28px; text-align: center; font-weight: bold; color: #38bdf8; }
+  </style>
+</head>
+<body>
+  <div class="banner" id="banner">WAITING FOR HOST</div>
+  <div class="arena">
+    <div class="card" id="card1">
+      <h2>Player 1</h2>
+      <h1 id="score1" style="font-size: 64px; margin: 10px 0;">0</h1>
+      <div class="meter"><div class="fill p1-fill" id="fill1"></div></div>
+      <p id="state1" style="margin-top: 15px; color: #a1a1aa;">Idle</p>
+    </div>
+    <div class="card" id="card2">
+      <h2>Player 2</h2>
+      <h1 id="score2" style="font-size: 64px; margin: 10px 0;">0</h1>
+      <div class="meter"><div class="fill p2-fill" id="fill2"></div></div>
+      <p id="state2" style="margin-top: 15px; color: #a1a1aa;">Idle</p>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+    socket.on('stateUpdate', (state) => {
+      const p1 = state.players.p1;
+      const p2 = state.players.p2;
+
+      document.getElementById('score1').innerText = p1.score;
+      document.getElementById('score2').innerText = p2.score;
+      document.getElementById('fill1').style.width = Math.min(100, (p1.score / 1000) * 100) + '%';
+      document.getElementById('fill2').style.width = Math.min(100, (p2.score / 1000) * 100) + '%';
+
+      if (state.status === 'ENDED') {
+        document.getElementById('banner').innerText = `🏆 ${state.winner.toUpperCase()} WINS!`;
+      } else {
+        document.getElementById('banner').innerText = `GAME ${state.status}`;
+      }
+
+      // Visual feedback for mutual exclusion
+      const bothScanning = p1.isScanning && p2.isScanning;
+      document.getElementById('card1').className = 'card ' + (bothScanning ? 'contested' : (p1.isScanning ? 'active' : ''));
+      document.getElementById('card2').className = 'card ' + (bothScanning ? 'contested' : (p2.isScanning ? 'active' : ''));
+
+      document.getElementById('state1').innerText = bothScanning ? 'CONTESTED (0 PTS)' : (p1.isScanning ? 'SCORING...' : 'OFF TARGET');
+      document.getElementById('state2').innerText = bothScanning ? 'CONTESTED (0 PTS)' : (p2.isScanning ? 'SCORING...' : 'OFF TARGET');
+    });
+  </script>
+</body>
+</html>
