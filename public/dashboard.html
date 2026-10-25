@@ -5,59 +5,166 @@
   <title>QR Clash - Live Dashboard</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    body { font-family: sans-serif; background: #09090b; color: #f8fafc; margin: 0; padding: 40px; }
-    .arena { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px; }
-    .card { background: #18181b; padding: 30px; border-radius: 16px; border: 2px solid #27272a; text-align: center; }
-    .card.active { border-color: #22c55e; box-shadow: 0 0 20px rgba(34,197,94,0.3); }
-    .card.contested { border-color: #eab308; }
-    .meter { height: 36px; background: #27272a; border-radius: 18px; overflow: hidden; margin-top: 20px; }
-    .fill { height: 100%; width: 0%; transition: width 0.1s linear; }
-    .p1-fill { background: #3b82f6; }
-    .p2-fill { background: #ec4899; }
-    .banner { font-size: 28px; text-align: center; font-weight: bold; color: #38bdf8; }
+    :root {
+      --bg-color: #09090b;
+      --text-color: #f8fafc;
+      --sub-color: #a1a1aa;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 40px;
+      min-height: 100vh;
+      box-sizing: border-box;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: background-color 0.25s ease, color 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Dynamic Body Background States */
+    body.bg-p1 {
+      --bg-color: #1e3a8a; /* Deep Royal Blue */
+      --text-color: #ffffff;
+      --sub-color: #bfdbfe;
+    }
+
+    body.bg-p2 {
+      --bg-color: #881337; /* Deep Crimson Red */
+      --text-color: #ffffff;
+      --sub-color: #fecdd3;
+    }
+
+    body.bg-contested {
+      --bg-color: #ca8a04; /* Amber / Yellow Warning */
+      --text-color: #1c1917; /* Dark text for contrast against bright yellow */
+      --sub-color: #451a03;
+    }
+
+    .banner {
+      font-size: 32px;
+      text-align: center;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 30px;
+    }
+
+    .arena {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(8px);
+      padding: 30px;
+      border-radius: 20px;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      text-align: center;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .score-number {
+      font-size: 80px;
+      margin: 10px 0;
+      font-weight: 900;
+    }
+
+    .meter {
+      height: 32px;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-top: 20px;
+    }
+
+    .fill {
+      height: 100%;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    .p1-fill { background: #38bdf8; }
+    .p2-fill { background: #f43f5e; }
+
+    .status-badge {
+      margin-top: 15px;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--sub-color);
+    }
   </style>
 </head>
 <body>
   <div class="banner" id="banner">WAITING FOR HOST</div>
+
   <div class="arena">
     <div class="card" id="card1">
       <h2>Player 1</h2>
-      <h1 id="score1" style="font-size: 64px; margin: 10px 0;">0</h1>
+      <div class="score-number" id="score1">0</div>
       <div class="meter"><div class="fill p1-fill" id="fill1"></div></div>
-      <p id="state1" style="margin-top: 15px; color: #a1a1aa;">Idle</p>
+      <div class="status-badge" id="state1">Off Target</div>
     </div>
+
     <div class="card" id="card2">
       <h2>Player 2</h2>
-      <h1 id="score2" style="font-size: 64px; margin: 10px 0;">0</h1>
+      <div class="score-number" id="score2">0</div>
       <div class="meter"><div class="fill p2-fill" id="fill2"></div></div>
-      <p id="state2" style="margin-top: 15px; color: #a1a1aa;">Idle</p>
+      <div class="status-badge" id="state2">Off Target</div>
     </div>
   </div>
 
   <script>
     const socket = io();
+
     socket.on('stateUpdate', (state) => {
       const p1 = state.players.p1;
       const p2 = state.players.p2;
 
+      // Update Scores & Progress Bars
       document.getElementById('score1').innerText = p1.score;
       document.getElementById('score2').innerText = p2.score;
       document.getElementById('fill1').style.width = Math.min(100, (p1.score / 1000) * 100) + '%';
       document.getElementById('fill2').style.width = Math.min(100, (p2.score / 1000) * 100) + '%';
 
+      // Title & Banner State
       if (state.status === 'ENDED') {
         document.getElementById('banner').innerText = `🏆 ${state.winner.toUpperCase()} WINS!`;
       } else {
         document.getElementById('banner').innerText = `GAME ${state.status}`;
       }
 
-      // Visual feedback for mutual exclusion
+      // Check scan conditions
       const bothScanning = p1.isScanning && p2.isScanning;
-      document.getElementById('card1').className = 'card ' + (bothScanning ? 'contested' : (p1.isScanning ? 'active' : ''));
-      document.getElementById('card2').className = 'card ' + (bothScanning ? 'contested' : (p2.isScanning ? 'active' : ''));
+      const p1Scoring = p1.isScanning && !p2.isScanning && state.status === 'PLAYING';
+      const p2Scoring = p2.isScanning && !p1.isScanning && state.status === 'PLAYING';
 
-      document.getElementById('state1').innerText = bothScanning ? 'CONTESTED (0 PTS)' : (p1.isScanning ? 'SCORING...' : 'OFF TARGET');
-      document.getElementById('state2').innerText = bothScanning ? 'CONTESTED (0 PTS)' : (p2.isScanning ? 'SCORING...' : 'OFF TARGET');
+      // Dynamic background color rules
+      if (bothScanning) {
+        document.body.className = 'bg-contested';
+        document.getElementById('state1').innerText = 'CONTESTED (0 PTS)';
+        document.getElementById('state2').innerText = 'CONTESTED (0 PTS)';
+      } else if (p1Scoring) {
+        document.body.className = 'bg-p1';
+        document.getElementById('state1').innerText = 'SCORING ACTIVE ⚡';
+        document.getElementById('state2').innerText = 'IDLE';
+      } else if (p2Scoring) {
+        document.body.className = 'bg-p2';
+        document.getElementById('state1').innerText = 'IDLE';
+        document.getElementById('state2').innerText = 'SCORING ACTIVE ⚡';
+      } else {
+        document.body.className = ''; // Defaults back to black/dark background
+        document.getElementById('state1').innerText = p1.isScanning ? 'LOCKED' : 'OFF TARGET';
+        document.getElementById('state2').innerText = p2.isScanning ? 'LOCKED' : 'OFF TARGET';
+      }
     });
   </script>
 </body>
